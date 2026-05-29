@@ -33,9 +33,10 @@ void setup() {
 
 void autonoma_esquerda() {
   Serial.println("Saindo da base");
-  
+  frente();
+  if (pausa(2000)) return; ///sai da base
   esquerda();  
-  if (pausa(200)) return;  // curva a esquerda
+  if (pausa(200)) return;  // curva a esquerda- mira no W
   
   frente();    
   if (pausa(5000)) return; // avanca ate o W e, depois, ate a bola oval
@@ -118,9 +119,11 @@ void autonoma_esquerda() {
 
 void autonoma_direita() {
   Serial.println("Saindo da base");
-  
+  frente();
+  if (pausa(2000)) return; ///sai da base
+
   direita();   
-  if (pausa(200)) return;  // curva a esquerda
+  if (pausa(200)) return;  // curva a direita- mira no W
   
   frente();    
   if (pausa(5000)) return; // avanca ate o W e, depois, ate a bola oval
