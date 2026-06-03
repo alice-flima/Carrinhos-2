@@ -5,26 +5,29 @@
 SoftwareSerial bt(11, 12); 
 Servo atacante;
 
-////vel controla velocidade e dir controla o sentido do motor, 1 e 2 sao os motores esquerdo e direito respectivamente
 const int velMot1 = 9; 
 const int dirMot1 = 10; 
 const int velMot2 = 7;
 const int dirMot2 = 8;  
 const int pinoServo = 3;
 
-int velocidadepadrao = 100; 
+int velocidadepadrao = 70; // Começa em 70% por segurança
 bool autonomaConcluida = false;
 
 bool pausa(unsigned long ms);
 
 void setup() {
-  atacante.attach(pinoServo);   ///o servo começa recolhido
+  atacante.attach(pinoServo);
   atacante.write(0);
   pinMode(dirMot1, OUTPUT);
   pinMode(dirMot2, OUTPUT);
   
   Serial.begin(9600);
   bt.begin(9600);
+  
+  // CRÍTICO: Define um tempo de espera baixo para ler o slider sem dar lag no robô
+  bt.setTimeout(50); 
+  
   SoftPWMBegin();
   parar();
   
@@ -33,36 +36,15 @@ void setup() {
 
 void autonoma_direita() {
   Serial.println("Saindo da base");
-  
   frente();   
-  if (pausa(2000)) return;  // curva a esquerda
-  
-  direita();    
-  if (pausa(600)) return; // avanca ate o W e, depois, ate a bola oval
-  
-  frente();     
-  if (pausa(9000)) return;  // Pausa rápida para estabilizar
-  
-  parar();   
-  if (pausa(500)) return;  // fica de frente para a primeira bola
-  Serial.println("Fim da fase autonoma"); ///acaba a fase autonoma idependente de ter feito gol
-}
-
-void autonoma_esquerda() {
-  Serial.println("Saindo da base");
-  
-  frente();   
-  if (pausa(4000)) return;  // curva a esquerda
-  
+  if (pausa(3000)) return;
   esquerda();    
-  if (pausa(3000)) return; // avanca ate o W e, depois, ate a bola oval
-  
+  if (pausa(100)) return;
   frente();     
-  if (pausa(8000)) return;  // Pausa rápida para estabilizar
-  
+  if (pausa(8000)) return;
   parar();   
-  if (pausa(500)) return;  // fica de frente para a primeira bola
-  Serial.println("Fim da fase autonoma"); ///acaba a fase autonoma idependente de ter feito gol
+  if (pausa(500)) return;
+  Serial.println("Fim da fase autonoma");
 }
 
 void frente() {
@@ -79,14 +61,14 @@ void tras() {
   SoftPWMSetPercent(velMot2, velocidadepadrao);
 }
 
-void direita() {
+void esquerda() {
   digitalWrite(dirMot1, HIGH); 
   digitalWrite(dirMot2, HIGH);
   SoftPWMSetPercent(velMot1, velocidadepadrao); 
   SoftPWMSetPercent(velMot2, 0); 
 }
 
-void esquerda() {
+void direita() {
   digitalWrite(dirMot1, HIGH); 
   digitalWrite(dirMot2, HIGH);
   SoftPWMSetPercent(velMot1, 0); 
@@ -101,13 +83,10 @@ void parar() {
 bool chutar() {
   atacante.write(90); 
   if (pausa(2000)) return true;        
-  
   atacante.write(0); 
   if (pausa(500)) return true;       
-  
   return false;
 }
-
 
 bool pausa(unsigned long ms) {
   unsigned long inicio = millis();
@@ -129,12 +108,8 @@ void loop() {
   if (autonomaConcluida == false) {
     if (bt.available() > 0) {
       char comando = (char)bt.read();
-        if (comando == 'D') { 
+      if (comando == 'A') { 
          autonoma_direita(); 
-         autonomaConcluida = true; 
-      }
-      else if (comando == 'E') { 
-         autonoma_esquerda(); 
          autonomaConcluida = true; 
       }
     }
@@ -143,7 +118,20 @@ void loop() {
     // Controle Bluetooth 
     if (bt.available() > 0) {
       char comando = (char)bt.read();
-      if (comando == 'F' || comando == 'B' || comando == 'L' || comando == 'R' || comando == 'S' || comando == 'C') {
+      
+      // NOVA FUNÇÃO: Se o comando for 'V', lê o valor do slider
+      if (comando == 'V') {
+        int novaVelocidade = bt.parseInt(); // Lê o número que vem depois do 'V'
+        
+        // Garante que o valor fique estritamente entre 0 e 100%
+        velocidadepadrao = constrain(novaVelocidade, 0, 100); 
+        
+        Serial.print("Nova velocidade definida: ");
+        Serial.println(velocidadepadrao);
+      }
+      
+      // Comandos de movimentação manual
+      else if (comando == 'F' || comando == 'B' || comando == 'L' || comando == 'R' || comando == 'S' || comando == 'C') {
         if (comando == 'F') frente();
         else if (comando == 'B') tras();
         else if (comando == 'L') esquerda();
