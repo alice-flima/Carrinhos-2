@@ -37,38 +37,37 @@ void setup() {
 
 void autonoma_direita() {
   Serial.println("Saindo da base");
-  
   frente();   
-  if (pausa(2000)) return;  // curva a esquerda
-  
+  if (pausa(4500)) return;
+  esquerda();    
+  if (pausa(30))
+  frente();   
+  if (pausa(1700)) return;
   direita();    
-  if (pausa(600)) return; // avanca ate o W e, depois, ate a bola oval
-  
+  if (pausa(2500)) return; 
   frente();     
-  if (pausa(9000)) return;  // Pausa rápida para estabilizar
-  
+  if (pausa(3000)) return; 
   parar();   
-  if (pausa(500)) return;  // fica de frente para a primeira bola
+  if (pausa(700)) return;  
   chutar();
   Serial.println("Fim da fase autonoma"); ///acaba a fase autonoma idependente de ter feito gol
 }
 
 void autonoma_esquerda() {
   Serial.println("Saindo da base");
-  
   frente();   
-  if (pausa(4000)) return;  // curva a esquerda
-  
+  if (pausa(1000)) return;  // curva a esquerda
   esquerda();    
-  if (pausa(3000)) return; // avanca ate o W e, depois, ate a bola oval
-  
-  frente();     
-  if (pausa(8000)) return;  // Pausa rápida para estabilizar
-  
-  parar();   
-  if (pausa(500)) return;  // fica de frente para a primeira bola
+  if (pausa(1250)) return; // avanca ate o W e, depois, ate a bola oval
+  frente();   
+  if (pausa(5000)) return; 
+  esquerda();     
+  if (pausa(2100)) return;  // Pausa rápida para estabilizar
+  frente();   
+  if (pausa(2700))
   chutar();
-  Serial.println("Fim da fase autonoma"); ///acaba a fase autonoma idependente de ter feito gol
+  Serial.println("Fim da fase autonoma");
+  parar();
 }
 
 void frente() {
