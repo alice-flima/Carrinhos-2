@@ -15,6 +15,7 @@ const int pinoServo3 = 3;
 const int pinoServo2 = 2;
 
 int velocidadepadrao = 100; 
+int velocidademenor = 75;
 bool autonomaConcluida = false;
 
 bool pausa(unsigned long ms);
@@ -98,6 +99,34 @@ void esquerda() {
   SoftPWMSetPercent(velMot2, velocidadepadrao);
 }
 
+void noroeste() {
+  digitalWrite(dirMot1, HIGH); 
+  digitalWrite(dirMot2, HIGH);
+  SoftPWMSetPercent(velMot1, velocidademenor); 
+  SoftPWMSetPercent(velMot2, velocidadepadrao); 
+}
+
+void nordeste() {
+  digitalWrite(dirMot1, HIGH); 
+  digitalWrite(dirMot2, HIGH);
+  SoftPWMSetPercent(velMot1, velocidadepadrao); 
+  SoftPWMSetPercent(velMot2, velocidademenor); 
+}
+
+void sudoeste() {
+  digitalWrite(dirMot1, LOW); 
+  digitalWrite(dirMot2, LOW);
+  SoftPWMSetPercent(velMot1, velocidademenor); 
+  SoftPWMSetPercent(velMot2, velocidadepadrao); 
+}
+
+void sudeste() {
+  digitalWrite(dirMot1, LOW); 
+  digitalWrite(dirMot2, LOW);
+  SoftPWMSetPercent(velMot1, velocidadepadrao); 
+  SoftPWMSetPercent(velMot2, velocidademenor); 
+}
+
 void parar() {
   SoftPWMSetPercent(velMot1, 0); 
   SoftPWMSetPercent(velMot2, 0);
@@ -153,6 +182,10 @@ void loop() {
         else if (comando == 'R') direita();
         else if (comando == 'S') parar();
         else if (comando == 'C') chutar(); 
+        else if (comando == 'a') noroeste(); 
+        else if (comando == 'b') nordeste(); 
+        else if (comando == 'c') sudoeste(); 
+        else if (comando == 'd') sudeste(); 
       }
     }
   }
