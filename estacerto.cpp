@@ -83,6 +83,7 @@ void autonoma_esquerda() {
   if (pausa(2500)) return; 
   frente();   
   if (pausa(3000)) return; 
+  parar();
   Serial.println("Fim da fase autonoma");
 }
 
