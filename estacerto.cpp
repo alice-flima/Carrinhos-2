@@ -18,6 +18,9 @@ int velocidadepadrao = 100;
 int velocidademenor = 75;
 bool autonomaConcluida = false;
 
+unsigned long tempoInicioChute = 0;
+int estadoChute = 0; // 0 = parado, 1 = chutando (esticado), 2 = recolhendo
+
 bool pausa(unsigned long ms);
 
 void setup() {
@@ -157,6 +160,26 @@ void chutar() {
   pausa(500);         
 }
 
+void chutarPiloto() {
+  if (estadoChute == 0) { // Só inicia se não estiver no meio de um chute anterior
+    atacante3.write(180); 
+    atacante2.write(0); 
+    tempoInicioChute = millis();
+    estadoChute = 1; // Muda o estado para "perna esticada"
+  }
+}
+
+void atualizarChute() {
+  if (estadoChute == 1 && (millis() - tempoInicioChute >= 2000)) {
+    atacante3.write(0); 
+    atacante2.write(180); 
+    tempoInicioChute = millis();
+    estadoChute = 2; // Muda o estado para "recolhendo a perna"
+  } 
+  else if (estadoChute == 2 && (millis() - tempoInicioChute >= 500)) {
+    estadoChute = 0; 
+  }
+}
 
 bool pausa(unsigned long ms) {
   unsigned long inicio = millis();
@@ -173,7 +196,6 @@ bool pausa(unsigned long ms) {
   }
   return false; 
 }
-
 void loop() {
   if (autonomaConcluida == false) {
     if (bt.available() > 0) {
@@ -197,14 +219,13 @@ void loop() {
         else if (comando == 'L') esquerda();
         else if (comando == 'R') direita();
         else if (comando == 'S') parar();
-        else if (comando == 'C') chutar(); 
+        else if (comando == 'C') chutarPiloto(); 
         else if (comando == 'a') noroeste(); 
         else if (comando == 'b') nordeste(); 
         else if (comando == 'c') sudoeste(); 
         else if (comando == 'd') sudeste(); 
-        else if (comando == 'E') autonoma_esquerda();  ////tirar 
-        else if (comando == 'D') autonoma_direita();  ////tirar
       }
+      
+      atualizarChute(); 
     }
   }
-
