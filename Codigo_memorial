@@ -1,0 +1,281 @@
+////Bibliotecas utilizadas:
+
+#include <SoftwareSerial.h> ////cria uma porta serial em outros pinos do Arduino para o controle via Bluetooth
+#include <SoftPWM.h> ///gera sinais PWM por software para controlar a velocidade dos motores
+#include <Servo.h> ///////controla os dois servomotores do mecanismo de chute.
+
+///Cria uma porta serial em outros pinos do Arduino para o controle via Bluetooth
+SoftwareSerial bt(11, 12); 
+///Cria os objetos dos dois servos do mecanismo de chute
+Servo atacante3;
+Servo atacante2;
+
+///Definição dos pinos dos motores e servos. A velocidade é controlada por SoftPWM nos pinos 9 e 7 e os pinos 10 e 8 definem o sentido de rotação das rodas. Os pinos 3 e 2 controlam os servos do mecanismo de chute.
+const int velMot1 = 9; 
+const int dirMot1 = 10; 
+const int velMot2 = 7;
+const int dirMot2 = 8;  
+const int pinoServo3 = 3;
+const int pinoServo2 = 2;
+
+////Foram definidas duas velocidades: a padrão (para o carrinho andar com 100% da velocidade) e a menor, que é usada para movimentos diagonais (1 roda com velocidade maior que a outra para alterar a direção do movimento).
+int velocidadepadrao = 100; 
+int velocidademenor = 75;
+////Variável que define se a fase autônoma já foi concluída ou não. Ela é usada para impedir que a fase autônoma seja repetida ou que o carrinho receba comandos da fase pilotada antes de terminar a fase autônoma
+bool autonomaConcluida = false;
+
+////Variáveis para controlar o tempo de execução do chute e permitir que o carrinho continue se movimentando enquanto o chute é realizado.
+unsigned long tempoInicioChute = 0;
+int estadoChute = 0; // 0 = parado, 1 = chutando (esticado), 2 = recolhendo
+
+////A pausa foi definida para permitir que o carrinho seja interrompido durante a fase autônoma, caso seja necessário durante os testes de calibração
+bool pausa(unsigned long ms);
+
+////Os atacantes são os 2 servos que realizam o chute.
+void setup() {
+  atacante3.attach(pinoServo3);   
+  atacante3.write(0);
+  atacante2.attach(pinoServo2);   
+  atacante2.write(180);
+  pinMode(dirMot1, OUTPUT);
+  pinMode(dirMot2, OUTPUT);
+  
+  ///Inicialização da comunicação serial com o computador (usada em testes) e com o módulo Bluetooth
+  Serial.begin(9600);
+  bt.begin(9600);
+  ///Inicialização da biblioteca para controle dos motores
+  SoftPWMBegin();
+  ///Define que o carrinho inicia parado:
+  parar();
+  
+  Serial.println(" Sistema Pronto");
+}
+
+/////A seguir, encontra-se o script da fase autônoma quando o carrinho inicia seu movimento em direção ao lado direito
+void autonoma_direita() {
+  ////No início, ele sai da base e se dirige até o ponto W que está à direita
+  Serial.println("Saindo da base");
+  direita();   
+  if (pausa(150)) return;
+  frente();   
+  if (pausa(4000)) return;
+  ///Após chegar no W, ele vai em direção às bolas ovais caminhando para a esquerda, de modo a parar bem centralizado no campo
+  esquerda();    
+  if (pausa(2100)) return; 
+  frente();     
+  if (pausa(1600)) return; 
+  ///Após alcançar a distância das bolas ovais, ele vira de frente para elas
+  direita();   
+  if (pausa(2700)) return; 
+  ////Alinhado, o carrinho se aproxima das bolas ovais e realiza o chute
+  frente();
+  if (pausa(3100)) return; 
+  parar();
+  chutar();
+  if (pausa(500)) return; 
+  ////Depois de jogar as bolas no cesto, o carrinho da ré, se alinha em direção ao seu lado do campo e segue até o seu cesto
+  tras();   
+  if (pausa(1100)) return; 
+  direita();   
+  if (pausa(1800)) return; 
+  frente();   
+  if (pausa(4000)) return; 
+  ////No fim, ele para bloqueando o cesto para impedir que o adversário faça pontos
+  parar();
+  Serial.println("Fim da fase autonoma");
+}
+
+void autonoma_esquerda() {
+  Serial.println("Saindo da base");
+  ////No início, ele sai da base e se dirige até o ponto W que está à direita
+  frente();   
+  if (pausa(1500)) return;  
+  esquerda();    
+  if (pausa(1400)) return;
+  frente();   
+  if (pausa(2100)) return; 
+  ///Após chegar no W, ele vai em direção às bolas ovais caminhando para a direita, de modo a parar bem centralizado no campo 
+  direita();
+  if (pausa(1700)) return; 
+  frente();   
+  if (pausa(2000)) return; 
+  ///Após alcançar a distância das bolas ovais, ele vira de frente para elas
+  esquerda();     
+  if (pausa(3900)) return;   
+  ////Alinhado, o carrinho se aproxima das bolas ovais e realiza o chute
+  frente();   
+  if (pausa(2000)) return; 
+  frente();   
+  if (pausa(1600)) return; 
+  parar();
+  chutar();
+  if (pausa(500)) return; 
+  ////Depois de jogar as bolas no cesto, o carrinho da ré, se alinha em direção ao seu lado do campo e segue até o seu cesto
+  tras();   
+  if (pausa(1000)) return; 
+  esquerda();   
+  if (pausa(2500)) return; 
+  frente();   
+  if (pausa(3000)) return; 
+  ////No fim, ele para bloqueando o cesto para impedir que o adversário faça pontos
+  parar();
+  Serial.println("Fim da fase autonoma");
+}
+
+void frente() {
+  ///Movimento para frente: as duas rodas giram no mesmo sentido e com a mesma velocidade
+  digitalWrite(dirMot1, HIGH); 
+  digitalWrite(dirMot2, HIGH);
+  SoftPWMSetPercent(velMot1, velocidadepadrao); 
+  SoftPWMSetPercent(velMot2, velocidadepadrao);
+}
+
+void tras() {
+  ///Movimento para trás: as duas rodas giram no mesmo sentido e com a mesma velocidade
+  digitalWrite(dirMot1, LOW); 
+  digitalWrite(dirMot2, LOW);
+  SoftPWMSetPercent(velMot1, velocidadepadrao); 
+  SoftPWMSetPercent(velMot2, velocidadepadrao);
+}
+
+void direita() {
+  ///Movimento para a direita: apenas a roda esquerda gira, fazendo o carrinho curvar para a direita.
+  digitalWrite(dirMot1, HIGH); 
+  digitalWrite(dirMot2, HIGH);
+  SoftPWMSetPercent(velMot1, velocidadepadrao); 
+  SoftPWMSetPercent(velMot2, 0); 
+}
+
+void esquerda() {
+  ///Movimento para a esquerda: apenas a roda direita gira, fazendo o carrinho curvar para a esquerda.
+  digitalWrite(dirMot1, HIGH); 
+  digitalWrite(dirMot2, HIGH);
+  SoftPWMSetPercent(velMot1, 0); 
+  SoftPWMSetPercent(velMot2, velocidadepadrao);
+}
+
+void noroeste() {
+  ///Movimento para a diagonal esquerda para frente: a roda esquerda gira mais devagar que a direita, fazendo o carrinho se mover para a diagonal
+  digitalWrite(dirMot1, HIGH); 
+  digitalWrite(dirMot2, HIGH);
+  SoftPWMSetPercent(velMot1, velocidademenor); 
+  SoftPWMSetPercent(velMot2, velocidadepadrao); 
+}
+
+void nordeste() {
+  ///Movimento para a diagonal direita para frente: a roda direita gira mais devagar que a esquerda, fazendo o carrinho se mover para a diagonal
+  digitalWrite(dirMot1, HIGH); 
+  digitalWrite(dirMot2, HIGH);
+  SoftPWMSetPercent(velMot1, velocidadepadrao); 
+  SoftPWMSetPercent(velMot2, velocidademenor); 
+}
+
+void sudoeste() {
+  ///Movimento para a diagonal esquerda para trás: a roda esquerda gira mais devagar que a direita, fazendo o carrinho se mover para a diagonal
+  digitalWrite(dirMot1, LOW); 
+  digitalWrite(dirMot2, LOW);
+  SoftPWMSetPercent(velMot1, velocidademenor); 
+  SoftPWMSetPercent(velMot2, velocidadepadrao); 
+}
+
+void sudeste() {
+  ///Movimento para a diagonal direita para trás: a roda direita gira mais devagar que a esquerda, fazendo o carrinho se mover para a diagonal
+  digitalWrite(dirMot1, LOW); 
+  digitalWrite(dirMot2, LOW);
+  SoftPWMSetPercent(velMot1, velocidadepadrao); 
+  SoftPWMSetPercent(velMot2, velocidademenor); 
+}
+
+void parar() {
+  ///Para o carrinho: as duas rodas param de girar
+  SoftPWMSetPercent(velMot1, 0); 
+  SoftPWMSetPercent(velMot2, 0);
+}
+
+void chutar() {
+  ////Os servos realizam o chute abrindo e fechando os palitos na fase autônoma. A pausa evita que o carrinho avance e caia no cesto
+  atacante3.write(180); 
+  atacante2.write(0); 
+  pausa(2000);        
+  atacante3.write(0); 
+  atacante2.write(180); 
+  pausa(500);         
+}
+
+void chutarPiloto() {
+  ////Função de chute utilizada na fase controlada. Ela permite que o carrinho continue se movimentando durante o chute, já que o tempo de execução do chute é controlado na função atualizarChute()
+  ///Ela serve para ter controle durante o chute, permitindo que o carrinho se mova para frente durante o chute (para maior velocidade) e pare antes de invadir a área do gol (conforme proibido no enunciado)
+  if (estadoChute == 0) { // Só inicia se não estiver no meio de um chute anterior
+    atacante3.write(180); 
+    atacante2.write(0); 
+    tempoInicioChute = millis();
+    estadoChute = 1; //// Muda o estado para "perna esticada"
+  }
+}
+
+void atualizarChute() {
+  ////Função que controla o tempo e o estado do chute: após 2 segundos, a perna é recolhida e, após mais 0,5 segundos, o chute é finalizado
+  if (estadoChute == 1 && (millis() - tempoInicioChute >= 2000)) {
+    atacante3.write(0); 
+    atacante2.write(180); 
+    tempoInicioChute = millis();
+    estadoChute = 2; //// Muda o estado para "recolhendo a perna"
+  } 
+  else if (estadoChute == 2 && (millis() - tempoInicioChute >= 500)) {
+    estadoChute = 0; 
+  }
+}
+
+bool pausa(unsigned long ms) {
+  ///Função para interrupção da fase autônoma usada durante os testes de calibração para permitir que o carrinho seja parado a qualquer momento
+  ///Caso o comando "T" seja recebido, a função retorna true e a fase autônoma é interrompida
+  unsigned long inicio = millis();
+  while (millis() - inicio < ms) {
+    if (bt.available() > 0) {
+      char c = (char)bt.read();
+      if (c == 'T') {
+        parar(); 
+        autonomaConcluida = true; 
+        Serial.println("Autonoma interrompida (T)");
+        return true; 
+      }
+    }
+  }
+  return false; 
+}
+void loop() {
+  ////A partida tem início com a fase autônoma escolhida via Bluetooth. Enquanto ela não estiver concluída, o carrinho não recebe comandos da fase pilotada
+  if (autonomaConcluida == false) {
+    if (bt.available() > 0) {
+      ///Inicia a fase autônoma escolhida pelo piloto: direita ou esquerda
+      char comando = (char)bt.read();
+        if (comando == 'D') { 
+         autonoma_direita(); 
+         autonomaConcluida = true; 
+      }
+      else if (comando == 'E') { 
+         autonoma_esquerda(); 
+         autonomaConcluida = true; 
+      }
+    }
+  }
+  ////Após concluída a fase autônoma, o carrinho passa a receber comandos da fase pilotada
+  else { 
+    //// Controle Bluetooth da fase pilotada: as letras enviadas pelo aplicativo de controle são recebidas e acionam um movimento
+    if (bt.available() > 0) {
+      char comando = (char)bt.read();
+        if (comando == 'F') frente();
+        else if (comando == 'B') tras();
+        else if (comando == 'L') esquerda();
+        else if (comando == 'R') direita();
+        else if (comando == 'S') parar();
+        else if (comando == 'C') chutarPiloto(); 
+        else if (comando == 'a') noroeste(); 
+        else if (comando == 'b') nordeste(); 
+        else if (comando == 'c') sudoeste(); 
+        else if (comando == 'd') sudeste(); 
+      }
+      
+      atualizarChute(); ////Atualiza o estado do chute, permitindo que o movimento dos servos ocorra sem interromper a execução dos demais comandos
+    }
+  }
